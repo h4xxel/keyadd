@@ -1,0 +1,4 @@
+keyadd-test
+keyadd-daemon
+*.o
+*.so
