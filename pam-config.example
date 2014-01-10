@@ -1,0 +1,5 @@
+#add this to the end of /etc/pam.d/common-auth:
+auth	optional	pam_keyadd.so	use_first_pass
+
+#and this to the end of /etc/pam.d/common-session:
+session	optional	pam_keyadd.so

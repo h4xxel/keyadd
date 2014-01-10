@@ -1,0 +1,9 @@
+Keyadd is a small utility for automatically adding a users login password
+for remote servers to the gnome keyring. This is intended to be used in
+an business/enterprise environment in conjunction with for example gvfs-mount,
+to automatically mount sftp and samba shares on login, without having to ask
+for the users' password.
+
+To get started, run "make && sudo make install", copy keyadd.conf to /etc/,
+and edit it with the servers you want to be mountable without asking for
+password.
