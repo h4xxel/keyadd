@@ -13,6 +13,7 @@ clean:
 	@rm -f keyadd-test keyadd-daemon pam_keyadd.so
 
 install:
+	@install -d /etc/xdg/autostart
 	@install -d /lib/security
 	@install -d /usr/local/bin
 	
@@ -20,3 +21,5 @@ install:
 	@install -t /lib/security -s pam_keyadd.so
 	@echo [INST] keyadd-daemon
 	@install -t /usr/local/bin -s keyadd-daemon
+	@echo [INST] keyadd.desktop
+	@install -m 644 -t /etc/xdg/autostart keyadd.desktop

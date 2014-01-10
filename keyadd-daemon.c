@@ -14,6 +14,7 @@
 #define PASSWORD_LENGTH 4096
 #define KEYADD_NAME "keyadd"
 #define SOCKET_PATH "/tmp"
+#define CONFIG_FILE "/etc/keyadd.conf"
 
 int sock_listen = -1;
 const char const *characters = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKHLMNOPQRSTUVWXYZ";
@@ -21,8 +22,8 @@ char password[PASSWORD_LENGTH];
 
 const char const *environment_variable[] = {
 	"DBUS_SESSION_BUS_ADDRESS",
-	"GNOME_KEYRING_CONTROL",
-	"GNOME_KEYRING_PID",
+	/*"GNOME_KEYRING_CONTROL",
+	"GNOME_KEYRING_PID",*/
 };
 
 typedef struct Command {
@@ -65,27 +66,55 @@ static void command_forget(const char *string, int sock) {
 }
 
 static void command_register(const char *string, int sock) {
+	FILE *conffile;
 	struct passwd *pwd;
 	/*GnomeKeyringResult result;*/
 	guint32 item_id;
 	
 	pwd=getpwuid(getuid());
 	
-	/*result = */gnome_keyring_set_network_password_sync(
-		NULL,
-		pwd->pw_name,
-		NULL,
-		"h4xxel.org",
-		NULL,
-		"sftp",
-		"password",
-		0,
-		password,
-		&item_id
-	);
+	if(!(conffile = fopen(CONFIG_FILE, "r")))
+		return;
 	
-	/*if(result != GNOME_KEYRING_RESULT_OK)
-		printf("keyring fail %u: %s\n", result, gnome_keyring_result_to_message(result));*/
+	while(!feof(conffile)) {
+		char *line = NULL;
+		char *protocol, *server;
+		
+		fscanf(conffile, "%m[^\n]", &line);
+		getc(conffile);
+		if(!line)
+			continue;
+		
+		if(*line == '#' || !*line) {
+			free(line);
+			continue;
+		}
+		
+		protocol = line;
+		server = strchr(line, ' ');
+		*server = 0;
+		server++;
+		
+		/*result = */gnome_keyring_set_network_password_sync(
+			NULL,
+			pwd->pw_name,
+			NULL,
+			server,
+			NULL,
+			protocol,
+			"password",
+			0,
+			password,
+			&item_id
+		);
+		
+		/*if(result != GNOME_KEYRING_RESULT_OK)
+			printf("keyring fail %u: %s\n", result, gnome_keyring_result_to_message(result));*/
+		
+		free(line);
+	}
+	
+	fclose(conffile);
 }
 
 static void command_exit(const char *string, int sock) {
