@@ -1,0 +1,13 @@
+#!/bin/sh
+
+OLDIFS=$IFS
+IFS="
+"
+for line in `cat /etc/keyadd.conf`; do
+	if [ "`echo $line | head -c 1`" = "#" ]; then
+		continue
+	fi
+	gvfs-mount `echo "$line/" | sed "s/ /:\/\/$USER@/"`
+	
+done
+IFS=$OLDIFS
