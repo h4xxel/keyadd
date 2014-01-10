@@ -20,6 +20,8 @@ int sock_listen = -1;
 const char const *characters = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKHLMNOPQRSTUVWXYZ";
 char password[PASSWORD_LENGTH];
 
+const char *status = "not registered";
+
 const char const *environment_variable[] = {
 	"DBUS_SESSION_BUS_ADDRESS",
 	/*"GNOME_KEYRING_CONTROL",
@@ -68,13 +70,15 @@ static void command_forget(const char *string, int sock) {
 static void command_register(const char *string, int sock) {
 	FILE *conffile;
 	struct passwd *pwd;
-	/*GnomeKeyringResult result;*/
+	GnomeKeyringResult result;
 	guint32 item_id;
 	
 	pwd=getpwuid(getuid());
 	
 	if(!(conffile = fopen(CONFIG_FILE, "r")))
 		return;
+	
+	status = "registered";
 	
 	while(!feof(conffile)) {
 		char *line = NULL;
@@ -95,7 +99,7 @@ static void command_register(const char *string, int sock) {
 		*server = 0;
 		server++;
 		
-		/*result = */gnome_keyring_set_network_password_sync(
+		result = gnome_keyring_set_network_password_sync(
 			NULL,
 			pwd->pw_name,
 			NULL,
@@ -108,13 +112,18 @@ static void command_register(const char *string, int sock) {
 			&item_id
 		);
 		
-		/*if(result != GNOME_KEYRING_RESULT_OK)
-			printf("keyring fail %u: %s\n", result, gnome_keyring_result_to_message(result));*/
+		if(result != GNOME_KEYRING_RESULT_OK)
+			status = gnome_keyring_result_to_message(result);
 		
 		free(line);
 	}
 	
 	fclose(conffile);
+}
+
+static void command_status(const char *string, int sock) {
+	send(sock, status, strlen(status), 0);
+	send(sock, "\n", 1, 0);
 }
 
 static void command_exit(const char *string, int sock) {
@@ -127,6 +136,7 @@ Command command[] = {
 	{"printenv", command_printenv},
 	{"forget", command_forget},
 	{"register", command_register},
+	{"status", command_status},
 	{"exit", command_exit},
 };
 
@@ -257,6 +267,8 @@ static void second_stage(const char *filename) {
 		fprintf(stderr, "connect failed");
 		return;
 	}
+	
+	send(sock, "set STAGED=2\n", 13, 0);
 	
 	for(i = 0; i < sizeof(environment_variable)/sizeof(char *); i++) {
 		if(!(value = getenv(environment_variable[i])))

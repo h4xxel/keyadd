@@ -1,0 +1,11 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=keyadd-daemon
+Comment=Add your login password to network servers in gnome keyring
+Icon=stock_lock-open
+TryExec=gnome-keyring-daemon
+Exec=keyadd-daemon --second-stage
+Terminal=false
+Type=Application
+Categories=
+

@@ -22,4 +22,4 @@ install:
 	@echo [INST] keyadd-daemon
 	@install -t /usr/local/bin -s keyadd-daemon
 	@echo [INST] keyadd.desktop
-	@install -m 644 -t /etc/xdg/autostart keyadd.desktop
+	@install -m 644 -t /etc/xdg/autostart keyadd-daemon.desktop
