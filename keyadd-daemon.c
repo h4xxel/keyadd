@@ -17,6 +17,7 @@
 #define CONFIG_FILE "/etc/keyadd.conf"
 
 int sock_listen = -1;
+const char *sock_filename = NULL;
 const char const *characters = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKHLMNOPQRSTUVWXYZ";
 char password[PASSWORD_LENGTH];
 
@@ -127,6 +128,7 @@ static void command_status(const char *string, int sock) {
 }
 
 static void command_exit(const char *string, int sock) {
+	close(sock);
 	exit(0);
 }
 
@@ -141,8 +143,10 @@ Command command[] = {
 };
 
 static void cleanup(void) {
-	if(sock_listen != -1)
+	if(sock_listen >= 0)
 		close(sock_listen);
+	if(sock_filename)
+		unlink(sock_filename);
 	
 	memset(password, 0, PASSWORD_LENGTH);
 }
@@ -163,10 +167,10 @@ static void do_command(const char *string, int sock) {
 }
 
 static void listen_socket(const char *filename) {
+	//TODO add error checking
 	struct sockaddr_un local, remote;
 	
-	umask(S_IRWXG | S_IRWXO);
-	
+	sock_filename = filename;
 	sock_listen = socket(AF_UNIX, SOCK_STREAM, 0);
 	local.sun_family = AF_UNIX;
 	sprintf(local.sun_path, "%s", filename);
@@ -234,19 +238,20 @@ static void first_stage(const char *filename) {
 		case 0:
 			/*Daemonize*/
 			if(setsid() < 0) {
-				fprintf(stderr, "setsid failed");
+				fprintf(stderr, "%s: Failed to setsid daemon process\n", KEYADD_NAME);
 				return;
 			}
 			chdir("/");
 			freopen("/dev/null", "r", stdin);
 			freopen("/dev/null", "w", stdout);
 			freopen("/dev/null", "w", stderr);
-			
+			umask(S_IRWXG | S_IRWXO);
 			atexit(cleanup);
+			
 			listen_socket(filename);
 			break;
 		case -1:
-			fprintf(stderr, "fork failed\n");
+			fprintf(stderr, "%s: Failed to fork new process\n", KEYADD_NAME);
 			return;
 		default:
 			break;
@@ -264,15 +269,15 @@ static void second_stage(const char *filename) {
 	sprintf(addr.sun_path, "%s", filename);
 	
 	if(connect(sock, (struct sockaddr *) &addr, strlen(addr.sun_path) + sizeof(addr.sun_family)) < 0) {
-		fprintf(stderr, "connect failed");
+		fprintf(stderr, "%s: Failed to connect to running daemon\n", KEYADD_NAME);
 		return;
 	}
 	
-	send(sock, "set STAGED=2\n", 13, 0);
-	
 	for(i = 0; i < sizeof(environment_variable)/sizeof(char *); i++) {
-		if(!(value = getenv(environment_variable[i])))
+		if(!(value = getenv(environment_variable[i]))) {
+			fprintf(stderr, "%s: Missing variable %s from environment\n", KEYADD_NAME, environment_variable[i]);
 			return;
+		}
 		
 		len = snprintf(NULL, 0, "set %s=%s\n", environment_variable[i], value);
 		message = malloc(len + 1);
@@ -284,8 +289,8 @@ static void second_stage(const char *filename) {
 	
 	message = "register\n";
 	send(sock, message, strlen(message), 0);
-	/*message = "forget\n";
-	send(sock, message, strlen(message), 0);*/
+	message = "forget\n";
+	send(sock, message, strlen(message), 0);
 	
 	close(sock);
 }
@@ -306,7 +311,7 @@ int main(int argc, char **argv) {
 	} else if(!strcmp(argv[1], "--second-stage")) {
 		char *filename;
 		if(!(filename = getenv("KEYADD_SOCK"))) {
-			fprintf(stderr, "Error: environment variable KEYADD_SOCK missing\n");
+			fprintf(stderr, "%s: environment variable KEYADD_SOCK missing\n", KEYADD_NAME);
 			return 1;
 		}
 		second_stage(filename);
