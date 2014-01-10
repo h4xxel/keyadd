@@ -6,4 +6,4 @@ for the users' password.
 
 To get started, run "make && sudo make install", copy keyadd.conf to /etc/,
 and edit it with the servers you want to be mountable without asking for
-password.
+password. You will then have to configure PAM; see pam-config.example.
